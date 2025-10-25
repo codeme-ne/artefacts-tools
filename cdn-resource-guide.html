@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CDN Ressourcen Guide</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 2.5rem 1.5rem 3rem;
+      background: linear-gradient(135deg, #0d0d0d, #1f1f46);
+      color: #f5f7ff;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    main {
+      width: min(960px, 100%);
+      background: rgba(15, 20, 40, 0.85);
+      border-radius: 18px;
+      padding: 2.75rem;
+      box-shadow: 0 25px 70px rgba(8, 8, 20, 0.5);
+      backdrop-filter: blur(12px);
+    }
+
+    header h1 {
+      margin: 0 0 0.5rem;
+      font-size: clamp(2rem, 3vw, 2.7rem);
+      letter-spacing: 0.02em;
+    }
+
+    header p {
+      margin: 0 0 2.5rem;
+      color: rgba(220, 224, 255, 0.85);
+      font-size: 1.05rem;
+      line-height: 1.6;
+    }
+
+    .controls {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      margin-bottom: 2rem;
+    }
+
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+
+    select {
+      padding: 0.85rem 1rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(11, 16, 32, 0.85);
+      color: #f5f7ff;
+      font-size: 1rem;
+      box-shadow: inset 0 0 0 1px rgba(98, 106, 220, 0.2);
+      transition: box-shadow 160ms ease, transform 160ms ease;
+    }
+
+    select:focus {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(98, 106, 220, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .results {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    article {
+      background: rgba(13, 18, 36, 0.9);
+      border: 1px solid rgba(135, 143, 255, 0.15);
+      border-radius: 16px;
+      padding: 1.5rem;
+      display: grid;
+      gap: 0.75rem;
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    article:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 22px 45px rgba(10, 12, 36, 0.45);
+    }
+
+    article h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      letter-spacing: 0.02em;
+    }
+
+    article p {
+      margin: 0;
+      color: rgba(214, 217, 255, 0.75);
+      line-height: 1.55;
+    }
+
+    .links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+    }
+
+    .links a {
+      padding: 0.55rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(84, 94, 214, 0.25);
+      color: #f7f8ff;
+      text-decoration: none;
+      transition: background 160ms ease, color 160ms ease;
+      font-size: 0.95rem;
+    }
+
+    .links a:hover {
+      background: rgba(135, 143, 255, 0.5);
+      color: white;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.7rem;
+      color: rgba(210, 214, 255, 0.55);
+      font-size: 0.9rem;
+      letter-spacing: 0.02em;
+    }
+
+    .empty-state {
+      padding: 2rem;
+      text-align: center;
+      background: rgba(13, 18, 36, 0.8);
+      border-radius: 16px;
+      border: 1px dashed rgba(98, 106, 220, 0.3);
+      color: rgba(214, 217, 255, 0.7);
+    }
+
+    @media (max-width: 600px) {
+      main {
+        padding: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>CDN Ressourcen nach Projekt-Typ</h1>
+      <p>
+        Wähle ein Thema und optional ein Framework aus, um kuratierte CDN-Links
+        für schnelles Prototyping, Demos oder Hackathons zu entdecken.
+      </p>
+    </header>
+
+    <section class="controls" aria-label="Filter">
+      <label>
+        Thema
+        <select id="topic">
+          <option value="frontend" selected>Frontend UI</option>
+          <option value="javascript">JavaScript Utilities</option>
+          <option value="visualization">Datenvisualisierung</option>
+          <option value="media">Media & Icons</option>
+          <option value="productivity">Produktivität & Bundling</option>
+          <option value="testing">Testing & QA</option>
+        </select>
+      </label>
+
+      <label>
+        Fokus
+        <select id="focus">
+          <option value="all" selected>Alle</option>
+        </select>
+      </label>
+    </section>
+
+    <section class="results" id="results" aria-live="polite"></section>
+  </main>
+
+  <template id="card-template">
+    <article>
+      <header>
+        <h2></h2>
+      </header>
+      <p class="description"></p>
+      <div class="links" aria-label="CDN Links"></div>
+      <footer class="meta"></footer>
+    </article>
+  </template>
+
+  <template id="empty-template">
+    <div class="empty-state">
+      <strong>Keine Treffer</strong>
+      <p>Versuche eine andere Kombination von Thema und Fokus.</p>
+    </div>
+  </template>
+
+  <script>
+    const data = {
+      frontend: {
+        label: "Frontend UI",
+        focuses: {
+          all: "Alle",
+          css: "CSS Frameworks",
+          components: "Komponenten-Bibliotheken",
+          utilities: "Utility-first CSS",
+        },
+        entries: [
+          {
+            title: "Bootstrap",
+            focus: "css",
+            description: "Allrounder mit umfangreichen Komponenten, Grid-System und Utilities.",
+            links: [
+              {
+                label: "JSDelivr",
+                url: "https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css",
+              },
+              {
+                label: "cdnjs",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css",
+              },
+            ],
+            meta: ["Version 5", "MIT"],
+          },
+          {
+            title: "Tailwind CSS",
+            focus: "utilities",
+            description: "Utility-first CSS für schnelle, responsive Layouts ohne eigenes CSS.",
+            links: [
+              {
+                label: "JSDelivr",
+                url: "https://cdn.jsdelivr.net/npm/tailwindcss@3.4.1/dist/tailwind.min.css",
+              },
+              {
+                label: "UNPKG",
+                url: "https://unpkg.com/tailwindcss@3.4.1/dist/tailwind.min.css",
+              },
+            ],
+            meta: ["Version 3", "PostCSS Pipeline optional"],
+          },
+          {
+            title: "Shoelace",
+            focus: "components",
+            description: "Framework-agnostische Web Components mit modernen Styles und Themes.",
+            links: [
+              {
+                label: "JSDelivr",
+                url: "https://cdn.jsdelivr.net/npm/@shoelace-style/shoelace@2.15.1/cdn/shoelace.js",
+              },
+            ],
+            meta: ["WC Standard", "Dark/Light Themes"],
+          },
+        ],
+      },
+      javascript: {
+        label: "JavaScript Utilities",
+        focuses: {
+          all: "Alle",
+          state: "State Management",
+          date: "Datum & Zeit",
+          helper: "Hilfsbibliotheken",
+        },
+        entries: [
+          {
+            title: "Vue 3",
+            focus: "state",
+            description: "Progressives Framework mit reaktiver Kernbibliothek.",
+            links: [
+              {
+                label: "JSDelivr",
+                url: "https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js",
+              },
+              {
+                label: "UNPKG",
+                url: "https://unpkg.com/vue@3/dist/vue.global.prod.js",
+              },
+            ],
+            meta: ["Composition API", "MIT"],
+          },
+          {
+            title: "Alpine.js",
+            focus: "helper",
+            description: "Leichtgewichtiges deklaratives JS für Interaktionen ohne Build-Step.",
+            links: [
+              {
+                label: "JSDelivr",
+                url: "https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js",
+              },
+            ],
+            meta: ["4 kB", "x-data/x-bind"],
+          },
+          {
+            title: "Day.js",
+            focus: "date",
+            description: "Minimalistische Moment.js-Alternative für Datum- und Zeitformatierung.",
+            links: [
+              {
+                label: "cdnjs",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/dayjs/1.11.10/dayjs.min.js",
+              },
+            ],
+            meta: ["2 kB", "Plugin-System"],
+          },
+        ],
+      },
+      visualization: {
+        label: "Datenvisualisierung",
+        focuses: {
+          all: "Alle",
+          charts: "Charts & Dashboards",
+          maps: "Karten",
+          science: "Wissenschaftliche Plots",
+        },
+        entries: [
+          {
+            title: "Chart.js",
+            focus: "charts",
+            description: "Einfaches API für responsive Canvas-Charts.",
+            links: [
+              {
+                label: "cdnjs",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.2/chart.umd.min.js",
+              },
+            ],
+            meta: ["Canvas", "MIT"],
+          },
+          {
+            title: "Apache ECharts",
+            focus: "charts",
+            description: "Interaktive Charts für Dashboards und Echtzeit-Visualisierungen.",
+            links: [
+              {
+                label: "cdnjs",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js",
+              },
+            ],
+            meta: ["Theming", "Apache 2.0"],
+          },
+          {
+            title: "Leaflet",
+            focus: "maps",
+            description: "Leichte Karte mit Tile-Layern und Marker-Unterstützung.",
+            links: [
+              {
+                label: "unpkg",
+                url: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
+              },
+              {
+                label: "unpkg JS",
+                url: "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
+              },
+            ],
+            meta: ["1 MB", "OpenStreetMap"],
+          },
+          {
+            title: "Plotly.js",
+            focus: "science",
+            description: "Wissenschaftliche Visualisierungen, 3D-Charts und interaktive Plots.",
+            links: [
+              {
+                label: "cdnjs",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.29.1/plotly.min.js",
+              },
+            ],
+            meta: ["SVG & WebGL", "MIT"],
+          },
+        ],
+      },
+      media: {
+        label: "Media & Icons",
+        focuses: {
+          all: "Alle",
+          icons: "Iconsets",
+          fonts: "Schriftarten",
+          video: "Video & Player",
+        },
+        entries: [
+          {
+            title: "Font Awesome",
+            focus: "icons",
+            description: "Umfangreiche Icon-Sammlung mit soliden, regulären und Marken-Icons.",
+            links: [
+              {
+                label: "cdnjs",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css",
+              },
+            ],
+            meta: ["6.5", "SVG + JS"]
+          },
+          {
+            title: "Google Fonts",
+            focus: "fonts",
+            description: "Über 1.400 freie Schriftarten mit einfachem @import.",
+            links: [
+              {
+                label: "Google CDN",
+                url: "https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap",
+              },
+            ],
+            meta: ["variable", "kostenlos"],
+          },
+          {
+            title: "Plyr",
+            focus: "video",
+            description: "Accessible HTML5 Media-Player mit YouTube und Vimeo Support.",
+            links: [
+              {
+                label: "cdnjs CSS",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.css",
+              },
+              {
+                label: "cdnjs JS",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/plyr/3.7.8/plyr.min.js",
+              },
+            ],
+            meta: ["ARIA Friendly", "MIT"],
+          },
+        ],
+      },
+      productivity: {
+        label: "Produktivität & Bundling",
+        focuses: {
+          all: "Alle",
+          bundler: "Bundler",
+          markdown: "Markdown & Docs",
+          automation: "Automation",
+        },
+        entries: [
+          {
+            title: "Vite",
+            focus: "bundler",
+            description: "Next-Gen Frontend Tooling mit ESBuild Dev-Server und Rollup Build.",
+            links: [
+              {
+                label: "JSDelivr",
+                url: "https://cdn.jsdelivr.net/npm/vite@5/dist/node/chunks/dep-95b4a4b1.js",
+              },
+            ],
+            meta: ["HMR", "MIT"],
+          },
+          {
+            title: "Marked",
+            focus: "markdown",
+            description: "Markdown Parser & Compiler für schnelle Dokumentationsseiten.",
+            links: [
+              {
+                label: "cdnjs",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js",
+              },
+            ],
+            meta: ["ESM", "CommonJS"],
+          },
+          {
+            title: "Axios",
+            focus: "automation",
+            description: "HTTP Client für Browser und Node.js mit Promises.",
+            links: [
+              {
+                label: "cdnjs",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.8/axios.min.js",
+              },
+            ],
+            meta: ["XHR & Fetch", "MIT"],
+          },
+        ],
+      },
+      testing: {
+        label: "Testing & QA",
+        focuses: {
+          all: "Alle",
+          browser: "Browser Tests",
+          unit: "Unit Tests",
+          accessibility: "Accessibility",
+        },
+        entries: [
+          {
+            title: "Jest",
+            focus: "unit",
+            description: "Beliebtes Testframework für JavaScript und TypeScript.",
+            links: [
+              {
+                label: "cdnjs",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/jest/29.7.0/jest.min.js",
+              },
+            ],
+            meta: ["Snapshot Tests", "Watch Mode"],
+          },
+          {
+            title: "Playwright",
+            focus: "browser",
+            description: "End-to-End Browser Tests mit paralleler Ausführung.",
+            links: [
+              {
+                label: "MS CDN",
+                url: "https://playwright.azureedge.net/release/builds/1.41.2/playwright.tgz",
+              },
+            ],
+            meta: ["Chromium", "Firefox", "WebKit"],
+          },
+          {
+            title: "axe-core",
+            focus: "accessibility",
+            description: "Accessibility Engine für automatisierte WCAG-Checks.",
+            links: [
+              {
+                label: "cdnjs",
+                url: "https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.7.0/axe.min.js",
+              },
+            ],
+            meta: ["Deque", "WCAG 2.1"],
+          },
+        ],
+      },
+    };
+
+    const topicSelect = document.getElementById("topic");
+    const focusSelect = document.getElementById("focus");
+    const results = document.getElementById("results");
+    const cardTemplate = document.getElementById("card-template");
+    const emptyTemplate = document.getElementById("empty-template");
+
+    function populateFocusOptions(topicKey) {
+      const { focuses } = data[topicKey];
+      focusSelect.innerHTML = "";
+      Object.entries(focuses).forEach(([value, label]) => {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = label;
+        focusSelect.appendChild(option);
+      });
+    }
+
+    function renderEntries(topicKey, focusKey) {
+      const { entries } = data[topicKey];
+      results.innerHTML = "";
+
+      const filtered = entries.filter((entry) => focusKey === "all" || entry.focus === focusKey);
+
+      if (!filtered.length) {
+        results.appendChild(emptyTemplate.content.cloneNode(true));
+        return;
+      }
+
+      filtered.forEach((entry) => {
+        const card = cardTemplate.content.cloneNode(true);
+        card.querySelector("h2").textContent = entry.title;
+        card.querySelector(".description").textContent = entry.description;
+
+        const linksContainer = card.querySelector(".links");
+        entry.links.forEach(({ label, url }) => {
+          const anchor = document.createElement("a");
+          anchor.href = url;
+          anchor.textContent = label;
+          anchor.target = "_blank";
+          anchor.rel = "noopener";
+          linksContainer.appendChild(anchor);
+        });
+
+        card.querySelector(".meta").textContent = entry.meta.join(" • ");
+        results.appendChild(card);
+      });
+    }
+
+    topicSelect.addEventListener("change", () => {
+      const topicKey = topicSelect.value;
+      populateFocusOptions(topicKey);
+      renderEntries(topicKey, focusSelect.value);
+    });
+
+    focusSelect.addEventListener("change", () => {
+      renderEntries(topicSelect.value, focusSelect.value);
+    });
+
+    populateFocusOptions(topicSelect.value);
+    renderEntries(topicSelect.value, focusSelect.value);
+  </script>
+</body>
+</html>
