@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table of Contents Generator</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #24292e;
+            background: #f6f8fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .input-section {
+            margin-bottom: 30px;
+        }
+
+        .input-section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 300px;
+            padding: 15px;
+            border: 2px solid #e1e4e8;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        .output-section {
+            display: none;
+            margin-top: 30px;
+        }
+
+        .output-section.active {
+            display: block;
+        }
+
+        .results {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 968px) {
+            .results {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .toc-panel {
+            background: #f6f8fa;
+            border: 2px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 20px;
+            position: sticky;
+            top: 20px;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+
+        .toc-panel h3 {
+            color: #667eea;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+
+        .toc-list {
+            list-style: none;
+        }
+
+        .toc-list li {
+            margin: 8px 0;
+        }
+
+        .toc-list a {
+            color: #24292e;
+            text-decoration: none;
+            display: block;
+            padding: 6px 10px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .toc-list a:hover {
+            background: #667eea;
+            color: white;
+            padding-left: 15px;
+        }
+
+        .toc-level-1 { padding-left: 0; font-weight: 600; }
+        .toc-level-2 { padding-left: 20px; font-size: 0.95em; }
+        .toc-level-3 { padding-left: 40px; font-size: 0.9em; }
+        .toc-level-4 { padding-left: 60px; font-size: 0.85em; }
+        .toc-level-5 { padding-left: 80px; font-size: 0.8em; }
+        .toc-level-6 { padding-left: 100px; font-size: 0.75em; }
+
+        .content-panel {
+            background: white;
+            border: 2px solid #e1e4e8;
+            border-radius: 6px;
+            padding: 30px;
+        }
+
+        .content-panel h1,
+        .content-panel h2,
+        .content-panel h3,
+        .content-panel h4,
+        .content-panel h5,
+        .content-panel h6 {
+            color: #24292e;
+            margin-top: 24px;
+            margin-bottom: 16px;
+            font-weight: 600;
+            line-height: 1.25;
+            scroll-margin-top: 20px;
+        }
+
+        .content-panel h1 {
+            font-size: 2em;
+            border-bottom: 2px solid #e1e4e8;
+            padding-bottom: 10px;
+        }
+
+        .content-panel h2 {
+            font-size: 1.5em;
+            border-bottom: 1px solid #e1e4e8;
+            padding-bottom: 8px;
+        }
+
+        .content-panel h3 { font-size: 1.25em; }
+        .content-panel h4 { font-size: 1.1em; }
+        .content-panel h5 { font-size: 1em; }
+        .content-panel h6 { font-size: 0.9em; color: #6a737d; }
+
+        .content-panel p {
+            margin-bottom: 16px;
+            line-height: 1.8;
+        }
+
+        .anchor-link {
+            color: #667eea;
+            text-decoration: none;
+            margin-left: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        h1:hover .anchor-link,
+        h2:hover .anchor-link,
+        h3:hover .anchor-link,
+        h4:hover .anchor-link,
+        h5:hover .anchor-link,
+        h6:hover .anchor-link {
+            opacity: 1;
+        }
+
+        .stats {
+            background: #f6f8fa;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .stats p {
+            margin: 5px 0;
+            color: #586069;
+        }
+
+        .stats strong {
+            color: #24292e;
+        }
+
+        .copy-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .copy-buttons button {
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: #28a745;
+            color: white;
+            padding: 16px 24px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #586069;
+            background: #f6f8fa;
+            margin-top: 30px;
+        }
+
+        footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        .example-link {
+            color: #667eea;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-left: 10px;
+        }
+
+        .example-link:hover {
+            color: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📑 Table of Contents Generator</h1>
+            <p>Generiere automatisch ein Inhaltsverzeichnis aus deinem Text</p>
+        </header>
+
+        <div class="main-content">
+            <div class="input-section">
+                <h2>Text eingeben</h2>
+                <p>Füge deinen Text ein (unterstützt Markdown-Überschriften # ## ### oder nummerierte Überschriften 1. 1.1 usw.)
+                    <span class="example-link" onclick="loadExample()">📋 Beispiel laden</span>
+                </p>
+                <textarea id="inputText" placeholder="# Hauptüberschrift&#x0a;&#x0a;Dein Text hier...&#x0a;&#x0a;## Unterüberschrift&#x0a;&#x0a;Mehr Text..."></textarea>
+                <div class="controls">
+                    <button onclick="generateTOC()">🚀 Inhaltsverzeichnis generieren</button>
+                    <button class="secondary" onclick="clearAll()">🗑️ Zurücksetzen</button>
+                </div>
+            </div>
+
+            <div class="output-section" id="outputSection">
+                <h2>Ergebnis</h2>
+
+                <div class="stats" id="stats"></div>
+
+                <div class="copy-buttons">
+                    <button onclick="copyTOC()">📋 Inhaltsverzeichnis kopieren</button>
+                    <button onclick="copyHTML()">📄 HTML kopieren</button>
+                </div>
+
+                <div class="results">
+                    <div class="toc-panel">
+                        <h3>Inhaltsverzeichnis</h3>
+                        <ul class="toc-list" id="tocList"></ul>
+                    </div>
+                    <div class="content-panel" id="contentPanel"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p><a href="/">← Zurück zur Übersicht</a></p>
+        </footer>
+    </div>
+
+    <div class="toast" id="toast">Kopiert!</div>
+
+    <script>
+        function generateTOC() {
+            const input = document.getElementById('inputText').value.trim();
+
+            if (!input) {
+                alert('Bitte Text eingeben!');
+                return;
+            }
+
+            const lines = input.split('\n');
+            const headings = [];
+            const contentHTML = [];
+            let headingCounter = {};
+
+            // Parse text and extract headings
+            lines.forEach((line, index) => {
+                const trimmed = line.trim();
+
+                // Detect Markdown headings (# ## ### etc.)
+                const mdMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+                if (mdMatch) {
+                    const level = mdMatch[1].length;
+                    const text = mdMatch[2].trim();
+                    const id = generateId(text, headingCounter);
+
+                    headings.push({ level, text, id });
+                    contentHTML.push(`<h${level} id="${id}">${escapeHtml(text)}<a href="#${id}" class="anchor-link">#</a></h${level}>`);
+                    return;
+                }
+
+                // Detect numbered headings (1. 1.1 1.1.1 etc.)
+                const numMatch = trimmed.match(/^(\d+\.)+\s+(.+)$/);
+                if (numMatch) {
+                    const dots = (trimmed.match(/\./g) || []).length;
+                    const level = Math.min(dots, 6);
+                    const text = trimmed.replace(/^(\d+\.)+\s+/, '').trim();
+                    const id = generateId(text, headingCounter);
+
+                    headings.push({ level, text: trimmed, id });
+                    contentHTML.push(`<h${level} id="${id}">${escapeHtml(trimmed)}<a href="#${id}" class="anchor-link">#</a></h${level}>`);
+                    return;
+                }
+
+                // Regular text
+                if (trimmed) {
+                    contentHTML.push(`<p>${escapeHtml(trimmed)}</p>`);
+                } else {
+                    contentHTML.push('<br>');
+                }
+            });
+
+            if (headings.length === 0) {
+                alert('Keine Überschriften gefunden! Verwende # für Markdown oder nummerierte Überschriften (1., 1.1, etc.)');
+                return;
+            }
+
+            // Generate TOC
+            const tocHTML = generateTOCList(headings);
+            document.getElementById('tocList').innerHTML = tocHTML;
+
+            // Generate content
+            document.getElementById('contentPanel').innerHTML = contentHTML.join('\n');
+
+            // Show stats
+            const stats = `
+                <p><strong>Überschriften gefunden:</strong> ${headings.length}</p>
+                <p><strong>Ebenen:</strong> ${Math.max(...headings.map(h => h.level))}</p>
+                <p><strong>Zeilen gesamt:</strong> ${lines.length}</p>
+            `;
+            document.getElementById('stats').innerHTML = stats;
+
+            // Show output
+            document.getElementById('outputSection').classList.add('active');
+
+            // Scroll to output
+            document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function generateTOCList(headings) {
+            let html = '';
+            headings.forEach(heading => {
+                html += `<li class="toc-level-${heading.level}">
+                    <a href="#${heading.id}">${escapeHtml(heading.text)}</a>
+                </li>`;
+            });
+            return html;
+        }
+
+        function generateId(text, counter) {
+            // Create URL-friendly ID
+            let base = text.toLowerCase()
+                .replace(/[^\w\s-äöüß]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .substring(0, 50);
+
+            if (!base) base = 'heading';
+
+            // Handle duplicates
+            if (counter[base] === undefined) {
+                counter[base] = 0;
+                return base;
+            } else {
+                counter[base]++;
+                return `${base}-${counter[base]}`;
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function copyTOC() {
+            const tocList = document.getElementById('tocList');
+            const items = tocList.querySelectorAll('li');
+            let text = 'Inhaltsverzeichnis\n\n';
+
+            items.forEach(item => {
+                const level = parseInt(item.className.match(/toc-level-(\d)/)[1]);
+                const indent = '  '.repeat(level - 1);
+                text += `${indent}- ${item.textContent.trim()}\n`;
+            });
+
+            copyToClipboard(text);
+            showToast('Inhaltsverzeichnis kopiert!');
+        }
+
+        function copyHTML() {
+            const content = document.getElementById('contentPanel').innerHTML;
+            const toc = document.getElementById('tocList').innerHTML;
+            const html = `<!-- Table of Contents -->\n<ul class="toc">\n${toc}\n</ul>\n\n<!-- Content -->\n${content}`;
+
+            copyToClipboard(html);
+            showToast('HTML kopiert!');
+        }
+
+        function copyToClipboard(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+
+        function clearAll() {
+            document.getElementById('inputText').value = '';
+            document.getElementById('outputSection').classList.remove('active');
+        }
+
+        function loadExample() {
+            const example = `# ChatGPT Research Report: Artificial Intelligence in Healthcare
+
+## 1. Executive Summary
+
+This report examines the current state and future prospects of artificial intelligence applications in healthcare settings.
+
+## 2. Introduction
+
+### 2.1 Background
+
+Artificial Intelligence (AI) has emerged as a transformative technology in healthcare.
+
+### 2.2 Research Objectives
+
+The primary objectives of this research are:
+- Identify key AI applications in healthcare
+- Evaluate effectiveness and challenges
+- Propose recommendations for implementation
+
+## 3. Current AI Applications
+
+### 3.1 Medical Imaging
+
+AI algorithms have shown remarkable performance in analyzing medical images.
+
+#### 3.1.1 Radiology
+
+Deep learning models can detect anomalies in X-rays and CT scans.
+
+#### 3.1.2 Pathology
+
+AI assists pathologists in identifying cancerous cells.
+
+### 3.2 Predictive Analytics
+
+Machine learning models predict patient outcomes and disease progression.
+
+### 3.3 Drug Discovery
+
+AI accelerates the drug discovery process by analyzing molecular structures.
+
+## 4. Challenges and Limitations
+
+### 4.1 Data Privacy
+
+Patient data protection remains a critical concern.
+
+### 4.2 Algorithm Bias
+
+AI models may perpetuate existing healthcare disparities.
+
+### 4.3 Regulatory Compliance
+
+Healthcare AI must meet strict regulatory requirements.
+
+## 5. Future Directions
+
+### 5.1 Personalized Medicine
+
+AI will enable truly personalized treatment plans.
+
+### 5.2 Remote Patient Monitoring
+
+Wearable devices combined with AI will revolutionize patient care.
+
+## 6. Conclusions
+
+AI has the potential to transform healthcare delivery and improve patient outcomes.
+
+## 7. Recommendations
+
+### 7.1 For Healthcare Providers
+
+Invest in AI infrastructure and training.
+
+### 7.2 For Policymakers
+
+Develop clear regulatory frameworks for AI in healthcare.
+
+### 7.3 For Researchers
+
+Continue research on explainable AI and bias mitigation.`;
+
+            document.getElementById('inputText').value = example;
+            showToast('Beispiel geladen!');
+        }
+
+        // Handle Enter key in textarea (Ctrl+Enter to generate)
+        document.getElementById('inputText').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                generateTOC();
+            }
+        });
+    </script>
+</body>
+</html>
