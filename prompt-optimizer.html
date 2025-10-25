@@ -356,6 +356,144 @@
       input.value = '';
     }
 
+    function buildOptimizationPrompt(criticType, originalPrompt, feedbackText) {
+      const baseInstruction = `You are an expert prompt engineer specializing in text classification tasks. Your goal is to improve the following prompt while preserving its EXACT original structure, formatting, line breaks, indentation, and layout.
+
+Original Prompt:
+"""
+${originalPrompt}
+"""
+
+`;
+
+      let specificInstructions = '';
+
+      switch(criticType) {
+        case 'consistency':
+          specificInstructions = `OPTIMIZATION TYPE: INTERNAL CONSISTENCY CHECK
+
+Your task is to identify and fix logical contradictions, inconsistencies, and conflicting instructions within the prompt.
+
+Specific focus areas:
+1. CONTRADICTORY INSTRUCTIONS: Find places where the prompt gives conflicting guidance (e.g., "be brief" vs "provide detailed examples")
+2. INCONSISTENT TERMINOLOGY: Identify where the same concept is referred to with different terms and standardize it
+3. LOGICAL FLOW: Ensure steps or instructions follow a logical sequence
+4. SCOPE CONFLICTS: Fix areas where the scope of the task is defined differently in different sections
+5. CONFLICTING EXAMPLES: Ensure all examples align with each other and with the main instructions
+6. REDUNDANCIES: Remove duplicate or repetitive instructions that might confuse the model
+7. INCOMPATIBLE REQUIREMENTS: Identify requirements that cannot all be satisfied simultaneously
+
+Changes to make:
+- Standardize terminology throughout
+- Remove or reconcile contradictory statements
+- Ensure all parts of the prompt support the same goal
+- Make the logical structure clear and consistent
+- Align all examples with the core instructions`;
+          break;
+
+        case 'feedback':
+          specificInstructions = `OPTIMIZATION TYPE: FEEDBACK-BASED REVISION
+
+Your task is to address specific feedback and issues while improving the prompt's effectiveness.
+
+${feedbackText ? `SPECIFIC FEEDBACK TO ADDRESS:\n"""${feedbackText}"""\n` : ''}
+
+Specific focus areas:
+1. ADDRESS ALL FEEDBACK POINTS: Make sure every concern mentioned in the feedback is resolved
+2. ROOT CAUSE FIXES: Don't just patch symptoms - fix underlying issues
+3. MAINTAIN EFFECTIVENESS: While addressing feedback, ensure you don't break what's working
+4. PROACTIVE IMPROVEMENTS: If feedback hints at deeper issues, fix those too
+5. CLEAR INSTRUCTIONS: Make sure the revised areas are clearer than before
+6. EXAMPLES & CLARIFICATION: Add examples if feedback indicates confusion
+7. VALIDATION: Ensure your changes actually solve the reported problems
+
+Changes to make:
+- Directly address each feedback point
+- Fix any underlying structural issues revealed by feedback
+- Add clarifying examples if confusion was mentioned
+- Strengthen weak areas identified in feedback
+- Ensure the prompt now handles the problematic cases better`;
+          break;
+
+        case 'clarity':
+          specificInstructions = `OPTIMIZATION TYPE: CLARITY ENHANCEMENT
+
+Your task is to make the prompt significantly clearer, more readable, and less ambiguous without changing its intent.
+
+Specific focus areas:
+1. AMBIGUOUS PHRASING: Replace vague or ambiguous language with precise, unambiguous instructions
+2. COMPLEX SENTENCES: Break down complex, multi-clause sentences into simpler ones
+3. JARGON & TERMINOLOGY: Clarify or define technical terms, or replace with simpler alternatives
+4. UNCLEAR REFERENCES: Fix pronouns and references that could be misinterpreted (this, that, it, etc.)
+5. IMPLICIT INSTRUCTIONS: Make implicit expectations explicit and clear
+6. CONFUSING STRUCTURE: Reorganize if the flow is hard to follow (but keep same overall structure)
+7. MISSING CONTEXT: Add clarifying context where assumptions might be unclear
+8. STRONGER VERBS: Use specific action verbs instead of weak ones (e.g., "analyze" not "look at")
+
+Changes to make:
+- Replace ambiguous words with specific ones
+- Simplify sentence structure without losing meaning
+- Make all instructions explicit rather than implied
+- Clarify what each part of the prompt requires
+- Use concrete examples to illustrate abstract concepts
+- Ensure pronouns have clear antecedents
+- Define or clarify any specialized terms`;
+          break;
+
+        case 'effectiveness':
+          specificInstructions = `OPTIMIZATION TYPE: EFFECTIVENESS OPTIMIZATION
+
+Your task is to maximize the prompt's ability to produce accurate, high-quality text classification results.
+
+Specific focus areas:
+1. CLASSIFICATION CRITERIA: Make classification criteria more precise, measurable, and actionable
+2. EDGE CASES: Add guidance for handling ambiguous or boundary cases
+3. DECISION FRAMEWORK: Strengthen the decision-making framework with clear prioritization rules
+4. DISCRIMINATIVE FEATURES: Emphasize the most important distinguishing features between categories
+5. ERROR PREVENTION: Add safeguards against common classification mistakes
+6. OUTPUT FORMAT: Ensure output format requirements are crystal clear and unambiguous
+7. CONFIDENCE HANDLING: Add guidance for expressing uncertainty when appropriate
+8. EXAMPLES: Ensure examples cover diverse cases and demonstrate key distinctions
+9. CONSTRAINTS: Make any constraints or requirements more explicit and enforceable
+
+Changes to make:
+- Sharpen classification criteria with specific, observable indicators
+- Add decision rules for ambiguous cases
+- Emphasize discriminative features that separate categories
+- Include both positive and negative examples for each category
+- Add explicit instructions for handling edge cases
+- Strengthen output format requirements
+- Add quality checks or verification steps
+- Make success criteria measurable and concrete`;
+          break;
+      }
+
+      const jsonInstructions = `
+
+Please provide your response in the following JSON format. Be very careful with JSON escaping - use \\n for line breaks and escape quotes properly:
+
+{
+  "optimized_prompt": "The improved version of the prompt with exact formatting preserved",
+  "change_summary": "A detailed summary of what was changed and why"
+}
+
+CRITICAL REQUIREMENTS:
+1. PRESERVE STRUCTURE: Keep the exact same structure, formatting, line breaks, indentation, bullet points, and numbering
+2. PRESERVE EXAMPLES: Keep all existing examples intact (you can improve them, but don't remove them)
+3. FOCUSED CHANGES: Only make changes relevant to the optimization type above
+4. STAY ON TARGET: Don't mix optimization types - focus ONLY on the specific type requested
+5. DOCUMENT CHANGES: In change_summary, explain exactly what you changed and why it improves the prompt
+
+IMPORTANT:
+- Your response must be ONLY a valid JSON object
+- Properly escape all quotes (use \\" for quotes inside strings)
+- Properly escape newlines (use \\n for line breaks)
+- Do NOT include markdown code blocks or any text outside the JSON
+- The optimized_prompt field must have the same formatting structure as the original`;
+
+      return baseInstruction + specificInstructions + jsonInstructions;
+    }
+
     async function optimizePrompt() {
       const originalPrompt = document.getElementById('originalPrompt').value.trim();
 
@@ -367,78 +505,8 @@
       const criticType = document.querySelector('input[name="criticType"]:checked').value;
       const feedbackText = document.getElementById('feedbackText').value.trim();
 
-      const criticOptions = {
-        consistency: {
-          label: 'Internal Consistency Check',
-          description: 'Verify logical flow and eliminate contradictions'
-        },
-        feedback: {
-          label: 'Feedback-Based Revision',
-          description: 'Improve prompt based on specific feedback'
-        },
-        clarity: {
-          label: 'Clarity Enhancement',
-          description: 'Improve readability and remove ambiguity'
-        },
-        effectiveness: {
-          label: 'Effectiveness Optimization',
-          description: 'Maximize classification accuracy and performance'
-        }
-      };
-
-      const selectedCritic = criticOptions[criticType];
-
-      // Build prompt
-      let prompt = `You are an expert prompt engineer specializing in text classification tasks. Your goal is to improve the following structured prompt while preserving its EXACT original structure, formatting, line breaks, indentation, and layout.
-
-Original Prompt:
-"""
-${originalPrompt}
-"""
-
-Optimization Type: ${selectedCritic.label}
-Focus: ${selectedCritic.description}`;
-
-      if (criticType === 'feedback' && feedbackText) {
-        prompt += `
-
-Specific Feedback to Address:
-"""
-${feedbackText}
-"""`;
-      }
-
-      prompt += `
-
-Please provide your response in the following JSON format. Be very careful with JSON escaping - use \\n for line breaks and escape quotes properly:
-
-{
-  "optimized_prompt": "The improved version of the prompt with exact formatting preserved",
-  "change_summary": "A detailed summary of the changes made and reasoning"
-}
-
-CRITICAL REQUIREMENTS for the optimized prompt:
-1. PRESERVE EXACTLY: All line breaks, spacing, indentation, bullet points, numbering, and formatting from the original
-2. MAINTAIN STRUCTURE: Keep the same sections, headers, and organizational elements
-3. IMPROVE CONTENT: ${criticType === 'consistency' ? 'Ensure internal consistency and logical flow' :
-     criticType === 'feedback' ? 'Address the provided feedback while preserving effectiveness' :
-     criticType === 'clarity' ? 'Improve clarity and remove ambiguity' :
-     'Maximize classification effectiveness and accuracy'}
-4. PRESERVE EXAMPLES: Keep all examples, templates, or sample formats intact
-5. ENHANCE CLARITY: Use more precise language while keeping the exact same structure
-
-Requirements for the change summary:
-1. List specific textual changes made (word choices, phrasing improvements)
-2. Explain the reasoning behind each significant modification
-3. Describe how these changes improve prompt effectiveness for text classification
-4. Note any terminology or instruction improvements
-5. Keep explanations clear and actionable
-
-IMPORTANT:
-- Your response must be ONLY a valid JSON object
-- Properly escape all quotes and newlines in the JSON strings
-- Do NOT include markdown formatting, code blocks, or any text outside the JSON
-- Preserve the original's formatting exactly in the optimized_prompt field`;
+      // Build specialized prompt for each optimization type
+      const prompt = buildOptimizationPrompt(criticType, originalPrompt, feedbackText);
 
       // Show loading state
       const button = document.getElementById('optimizeButton');
