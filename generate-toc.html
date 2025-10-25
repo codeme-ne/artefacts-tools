@@ -435,9 +435,19 @@
             <div class="input-section">
                 <h2>Text eingeben</h2>
                 <p>Füge deinen Text ein (unterstützt Markdown-Überschriften # ## ### oder nummerierte Überschriften 1. 1.1 usw.)
-                    <br><span class="example-link" onclick="loadExample()">📋 Beispiel laden</span>
+                    <br><span class="example-link" onclick="loadExample()">📋 Markdown-Beispiel</span>
+                    &nbsp;|&nbsp;
+                    <span class="example-link" onclick="loadPlainTextExample()">📄 Fließtext-Beispiel</span>
                 </p>
                 <textarea id="inputText" placeholder="# Hauptüberschrift&#x0a;&#x0a;Dein Text hier...&#x0a;&#x0a;## Unterüberschrift&#x0a;&#x0a;Mehr Text..."></textarea>
+
+                <div style="margin-top: 12px; padding: 10px; background: #f6f8fa; border-radius: 6px;">
+                    <label style="display: flex; align-items: center; cursor: pointer; font-size: 0.9em;">
+                        <input type="checkbox" id="autoDetect" style="margin-right: 8px;">
+                        <span>🤖 Auto-Erkennung: Überschriften aus Fließtext ohne Markdown-Syntax erkennen</span>
+                    </label>
+                </div>
+
                 <div class="controls">
                     <button onclick="generateTOC()">🚀 Inhaltsverzeichnis generieren</button>
                     <button class="secondary" onclick="clearAll()">🗑️ Zurücksetzen</button>
@@ -472,8 +482,56 @@
     <div class="toast" id="toast">Kopiert!</div>
 
     <script>
+        function isLikelyHeading(line, prevLine, nextLine) {
+            const trimmed = line.trim();
+
+            // Skip empty lines
+            if (!trimmed) return null;
+
+            // Skip if already markdown or numbered
+            if (trimmed.match(/^#{1,6}\s/) || trimmed.match(/^(\d+\.)+\s/)) return null;
+
+            // Heuristics for heading detection:
+            // 1. Line is relatively short (< 150 chars)
+            // 2. Starts with capital letter or number
+            // 3. Doesn't end with sentence punctuation (. , ; : !)
+            // 4. Not too short (> 10 chars to avoid false positives)
+            // 5. Previous or next line is empty (standalone line)
+
+            const length = trimmed.length;
+            const startsWithCapital = /^[A-ZÄÖÜ0-9]/.test(trimmed);
+            const endsWithPunctuation = /[.,;:!?]$/.test(trimmed);
+            const hasEmptyContext = (!prevLine || prevLine.trim() === '') || (!nextLine || nextLine.trim() === '');
+
+            // Not a heading if too long, ends with punctuation, or doesn't start with capital
+            if (length > 150 || endsWithPunctuation || !startsWithCapital) return null;
+
+            // Too short to be meaningful
+            if (length < 10) return null;
+
+            // Must have empty line before or after (standalone)
+            if (!hasEmptyContext) return null;
+
+            // Determine level based on length and formatting
+            // Very short (< 50) = Level 1
+            // Short (50-80) = Level 2
+            // Medium (80-150) = Level 3
+
+            let level;
+            if (length < 50) {
+                level = 1;
+            } else if (length < 80) {
+                level = 2;
+            } else {
+                level = 3;
+            }
+
+            return { level, text: trimmed };
+        }
+
         function generateTOC() {
             const input = document.getElementById('inputText').value.trim();
+            const autoDetect = document.getElementById('autoDetect').checked;
 
             if (!input) {
                 alert('Bitte Text eingeben!');
@@ -488,6 +546,8 @@
             // Parse text and extract headings
             lines.forEach((line, index) => {
                 const trimmed = line.trim();
+                const prevLine = index > 0 ? lines[index - 1] : '';
+                const nextLine = index < lines.length - 1 ? lines[index + 1] : '';
 
                 // Detect Markdown headings (# ## ### etc.)
                 const mdMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
@@ -514,6 +574,17 @@
                     return;
                 }
 
+                // Auto-detect headings from plain text (if enabled)
+                if (autoDetect) {
+                    const heading = isLikelyHeading(trimmed, prevLine, nextLine);
+                    if (heading) {
+                        const id = generateId(heading.text, headingCounter);
+                        headings.push({ level: heading.level, text: heading.text, id });
+                        contentHTML.push(`<h${heading.level} id="${id}">${escapeHtml(heading.text)}<a href="#${id}" class="anchor-link">#</a></h${heading.level}>`);
+                        return;
+                    }
+                }
+
                 // Regular text
                 if (trimmed) {
                     contentHTML.push(`<p>${escapeHtml(trimmed)}</p>`);
@@ -523,7 +594,10 @@
             });
 
             if (headings.length === 0) {
-                alert('Keine Überschriften gefunden! Verwende # für Markdown oder nummerierte Überschriften (1., 1.1, etc.)');
+                const suggestion = autoDetect
+                    ? 'Keine Überschriften gefunden! Stelle sicher, dass Überschriften auf eigenen Zeilen stehen und mit Leerzeilen getrennt sind.'
+                    : 'Keine Überschriften gefunden! Verwende # für Markdown, nummerierte Überschriften (1., 1.1, etc.) oder aktiviere die Auto-Erkennung.';
+                alert(suggestion);
                 return;
             }
 
@@ -720,6 +794,64 @@ Continue research on explainable AI and bias mitigation.`;
 
             document.getElementById('inputText').value = example;
             showToast('Beispiel geladen!');
+        }
+
+        function loadPlainTextExample() {
+            const example = `Automatische Grafikerstellung für Astro-Blogposts
+
+In diesem Leitfaden wird beschrieben, wie du automatisch zu jedem Blogpost in einem Astro-5-basierten Blogsystem eine minimalistische Vektorgrafik im einheitlichen Stil generierst.
+
+Auswahl des LLM für Zusammenfassungen
+
+Für die Text-Zusammenfassung eines Blogposts in einen einzigen prägnanten Satz eignet sich ein leistungsfähiges Sprachmodell. Zwei Ansätze bieten sich an:
+
+Externes API-LLM (Cloud)
+
+Ein Dienst wie OpenAI GPT-3.5 Turbo kann sehr präzise Zusammenfassungen liefern. Die Nutzung über die API ist vergleichsweise kostengünstig (Bruchteile eines Cents pro Anfrage bei kurzem Text) und erfordert wenig Setup.
+
+Open-Source LLM (self-hosted)
+
+Falls du externe API-Kosten vermeiden möchtest, kannst du ein lokales Modell einsetzen. Beispiele: Llama 2 (7B/13B) oder FLAN-T5 (für Summaries) oder GPT4All. Diese können auf einem Server (ggf. mit GPU) laufen.
+
+Auswahl des Bildgenerierungs-Modells
+
+Der zweite Schritt ist die Bildgenerierung im minimalistischen Vektorstil basierend auf der Text-Zusammenfassung.
+
+Cloud-Dienst (fal.ai)
+
+fal.ai stellt eine Plattform mit über 600 vorgefertigten KI-Modellen zur Verfügung, darunter viele Bildgeneratoren. Ein speziell hervorzuhebendes Modell ist Recraft V3, ein State-of-the-Art Text-to-Image-Modell.
+
+Open-Source Stable Diffusion
+
+Eine andere Möglichkeit ist, Stable Diffusion selbst zu nutzen – entweder auf deiner eigenen Hardware oder über Dienste wie HuggingFace Inference API, Replicate, StabilityAI's DreamStudio API.
+
+Technischer Workflow
+
+Jetzt betrachten wir den Ablauf im Detail, um aus einem neuen Blogartikel automatisch ein Bild zu erhalten.
+
+Artikeltext extrahieren
+
+Sobald ein neuer Blogpost (MDX-Datei) erstellt oder ein bestehender Beitrag noch kein Bild hat, wird dessen Inhalt ausgelesen.
+
+LLM-Zusammenfassung erzeugen
+
+Füttere den Artikeltext in das gewählte LLM mit der Aufforderung, eine einzige prägnante Satz-Zusammenfassung zu erzeugen.
+
+Prompt für Bildgeneration erstellen
+
+Nimm diesen einen Satz und forme ihn zu einem Eingabe-Prompt für das Bildmodell um.
+
+Integration in den Astro-Build-Prozess
+
+Wie lässt sich das oben Beschriebene technisch in Astro 5 einbinden?
+
+Kostenkontrolle und Effizienz
+
+Zum Schluss noch wichtige Hinweise, um die Kosten und Performance im Griff zu behalten.`;
+
+            document.getElementById('inputText').value = example;
+            document.getElementById('autoDetect').checked = true;
+            showToast('Fließtext-Beispiel geladen! Auto-Erkennung aktiviert.');
         }
 
         // Handle Enter key in textarea (Ctrl+Enter to generate)
