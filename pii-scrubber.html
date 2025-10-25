@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PII Scrubber - Privacy Protection Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --dark: #1f2937;
+            --light: #f9fafb;
+            --text: #111827;
+            --text-light: #6b7280;
+            --border: #e5e7eb;
+            --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        [data-theme="dark"] {
+            --dark: #f9fafb;
+            --light: #111827;
+            --text: #f9fafb;
+            --text-light: #9ca3af;
+            --border: #374151;
+            --shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--light);
+            color: var(--text);
+            line-height: 1.6;
+            transition: all 0.3s ease;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            z-index: -1;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            opacity: 0.05;
+        }
+
+        .bg-animation::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(139, 92, 246, 0.3) 0%, transparent 70%);
+            animation: rotate 30s linear infinite;
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Floating particles */
+        .particle {
+            position: fixed;
+            pointer-events: none;
+            opacity: 0.3;
+            animation: float 20s infinite;
+        }
+
+        @keyframes float {
+            0%, 100% {
+                transform: translateY(0) translateX(0) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 0.3;
+            }
+            90% {
+                opacity: 0.3;
+            }
+            100% {
+                transform: translateY(-100vh) translateX(100px) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        /* Header */
+        header {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        [data-theme="dark"] header {
+            background: rgba(17, 24, 39, 0.8);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: var(--gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        /* Theme Toggle */
+        .theme-toggle {
+            background: var(--gradient);
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+            box-shadow: var(--shadow);
+        }
+
+        .theme-toggle:hover {
+            transform: scale(1.1) rotate(180deg);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 2rem;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        [data-theme="dark"] .stat-card {
+            background: #1f2937;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 30px -5px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: var(--gradient);
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            background: var(--gradient);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-label {
+            color: var(--text-light);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Main Content Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 968px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Card Styles */
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            position: relative;
+            transition: all 0.3s ease;
+        }
+
+        [data-theme="dark"] .card {
+            background: #1f2937;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .card-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-title-icon {
+            width: 30px;
+            height: 30px;
+            background: var(--gradient);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1rem;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: var(--text);
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.95rem;
+            resize: vertical;
+            transition: all 0.3s ease;
+            background: var(--light);
+            color: var(--text);
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            background: var(--light);
+            color: var(--text);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Checkbox Group */
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.75rem;
+            margin-top: 0.5rem;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 8px;
+            transition: background 0.3s ease;
+            cursor: pointer;
+        }
+
+        .checkbox-wrapper:hover {
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            margin-right: 0.5rem;
+            cursor: pointer;
+            accent-color: var(--primary);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.5);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .btn:active::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .btn-primary {
+            background: var(--gradient);
+            color: white;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .btn-secondary {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: var(--text-light);
+            color: white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        /* Output Display */
+        .output-display {
+            background: var(--light);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            min-height: 200px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            position: relative;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .output-display .redacted {
+            background: var(--warning);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            animation: highlight 0.5s ease;
+        }
+
+        @keyframes highlight {
+            0% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        /* Entity Pills */
+        .entity-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .entity-pill {
+            padding: 0.375rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .entity-pill.person { background: #fce7f3; color: #be185d; }
+        .entity-pill.email { background: #dbeafe; color: #1e40af; }
+        .entity-pill.phone { background: #d1fae5; color: #065f46; }
+        .entity-pill.iban { background: #fef3c7; color: #92400e; }
+        .entity-pill.location { background: #e9d5ff; color: #6b21a8; }
+        .entity-pill.url { background: #cffafe; color: #155e75; }
+        .entity-pill.ip { background: #fee2e2; color: #991b1b; }
+
+        /* Loading Spinner */
+        .spinner {
+            display: none;
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+
+        .spinner.active {
+            display: block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            box-shadow: var(--shadow);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success { background: var(--success); }
+        .notification.error { background: var(--danger); }
+        .notification.warning { background: var(--warning); }
+
+        /* Batch Mode */
+        .batch-container {
+            display: none;
+            background: var(--light);
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            text-align: center;
+            margin-top: 1rem;
+        }
+
+        .batch-container.active {
+            display: block;
+        }
+
+        .file-upload-area {
+            padding: 3rem;
+            border: 3px dashed var(--primary);
+            border-radius: 12px;
+            background: rgba(99, 102, 241, 0.05);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload-area:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--primary-dark);
+        }
+
+        .file-upload-area.dragover {
+            background: rgba(99, 102, 241, 0.2);
+            transform: scale(1.02);
+        }
+
+        /* Advanced Options */
+        .advanced-options {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .toggle-advanced {
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toggle-advanced:hover {
+            color: var(--primary-dark);
+        }
+
+        .advanced-content {
+            display: none;
+            margin-top: 1rem;
+            animation: slideDown 0.3s ease;
+        }
+
+        .advanced-content.show {
+            display: block;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Custom Redaction */
+        .redaction-rules {
+            display: grid;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .redaction-rule {
+            display: grid;
+            grid-template-columns: 150px 1fr auto;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .redaction-rule input {
+            padding: 0.5rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+        }
+
+        .redaction-rule input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-content {
+                padding: 0 1rem;
+            }
+
+            .container {
+                padding: 0 1rem;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-group {
+                flex-direction: column;
+            }
+
+            .notification {
+                left: 1rem;
+                right: 1rem;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            header, .stats-grid, .btn-group {
+                display: none;
+            }
+
+            .card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+
+    <!-- Floating Particles -->
+    <div class="particle" style="left: 10%; top: 20%; color: #6366f1;">🔒</div>
+    <div class="particle" style="left: 80%; top: 30%; color: #8b5cf6; animation-delay: 5s;">🛡️</div>
+    <div class="particle" style="left: 50%; top: 60%; color: #10b981; animation-delay: 10s;">✨</div>
+    <div class="particle" style="left: 20%; top: 80%; color: #f59e0b; animation-delay: 15s;">🔐</div>
+
+    <header>
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🛡️</div>
+                <span>PII Scrubber</span>
+            </div>
+            <div class="header-controls">
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle Theme">
+                    <span id="themeIcon">🌙</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Statistics -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value" id="totalProcessed">0</div>
+                <div class="stat-label">Texte verarbeitet</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🔍</div>
+                <div class="stat-value" id="entitiesFound">0</div>
+                <div class="stat-label">Entities gefunden</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">⚡</div>
+                <div class="stat-value" id="avgTime">0ms</div>
+                <div class="stat-label">Durchschn. Zeit</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon">🛡️</div>
+                <div class="stat-value" id="privacyScore">100%</div>
+                <div class="stat-label">Privacy Score</div>
+            </div>
+        </div>
+
+        <!-- Main Grid -->
+        <div class="main-grid">
+            <!-- Input Section -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-title-icon">📝</div>
+                        <span>Text Input</span>
+                    </div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="loadExample()">
+                            <span>📋</span> Beispiel laden
+                        </button>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="inputText">Text mit personenbezogenen Daten:</label>
+                    <textarea id="inputText" placeholder="Geben Sie hier Ihren Text ein...
+Beispiel: Max Mustermann wohnt in Berlin.
+Seine E-Mail ist max@example.com und seine Telefonnummer ist +49 30 12345678.
+IBAN: DE89 3704 0044 0532 0130 00"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="language">Sprache:</label>
+                    <select id="language">
+                        <option value="de">Deutsch</option>
+                        <option value="en">English</option>
+                        <option value="auto">Auto-Detect</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Zu erkennende Entity-Typen:</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" value="PERSON" checked> Person
+                        </label>
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" value="EMAIL" checked> E-Mail
+                        </label>
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" value="PHONE" checked> Telefon
+                        </label>
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" value="IBAN" checked> IBAN
+                        </label>
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" value="LOCATION" checked> Ort
+                        </label>
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" value="URL" checked> URL
+                        </label>
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" value="IP" checked> IP-Adresse
+                        </label>
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" value="DATE" checked> Datum
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Advanced Options -->
+                <div class="advanced-options">
+                    <div class="toggle-advanced" onclick="toggleAdvanced()">
+                        <span id="advancedIcon">▶</span>
+                        <span>Erweiterte Optionen</span>
+                    </div>
+                    <div class="advanced-content" id="advancedContent">
+                        <div class="form-group">
+                            <label>Custom Redaction Text:</label>
+                            <div class="redaction-rules">
+                                <div class="redaction-rule">
+                                    <span>Person:</span>
+                                    <input type="text" id="redactPerson" placeholder="[NAME]" value="[NAME]">
+                                </div>
+                                <div class="redaction-rule">
+                                    <span>E-Mail:</span>
+                                    <input type="text" id="redactEmail" placeholder="[EMAIL]" value="[EMAIL]">
+                                </div>
+                                <div class="redaction-rule">
+                                    <span>Telefon:</span>
+                                    <input type="text" id="redactPhone" placeholder="[PHONE]" value="[PHONE]">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="checkbox-wrapper">
+                                <input type="checkbox" id="realtime"> Echtzeit-Verarbeitung
+                            </label>
+                            <label class="checkbox-wrapper">
+                                <input type="checkbox" id="batchMode"> Batch-Modus
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Batch Upload -->
+                <div class="batch-container" id="batchContainer">
+                    <div class="file-upload-area" id="fileUploadArea">
+                        <span style="font-size: 3rem;">📁</span>
+                        <p style="margin-top: 1rem; font-weight: 600;">Dateien hierher ziehen</p>
+                        <p style="color: var(--text-light); font-size: 0.875rem;">oder klicken zum Auswählen</p>
+                        <input type="file" id="fileInput" style="display: none;" multiple accept=".txt,.csv">
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="processText()">
+                        <span>🔍</span> Text analysieren
+                    </button>
+                    <button class="btn btn-secondary" onclick="clearAll()">
+                        <span>🗑️</span> Zurücksetzen
+                    </button>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">
+                        <div class="card-title-icon">✅</div>
+                        <span>Anonymisiertes Ergebnis</span>
+                    </div>
+                    <div>
+                        <button class="btn btn-secondary" onclick="copyResult()">
+                            <span>📋</span> Kopieren
+                        </button>
+                    </div>
+                </div>
+
+                <div class="spinner" id="spinner"></div>
+
+                <div class="output-display" id="outputDisplay">
+                    Hier erscheint der anonymisierte Text...
+                </div>
+
+                <div class="form-group">
+                    <label>Gefundene Entities:</label>
+                    <div class="entity-pills" id="entityPills">
+                        <!-- Entity pills will be added here -->
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 2rem;">
+                    <label>Entity Details:</label>
+                    <div id="entityDetails" style="background: var(--light); padding: 1rem; border-radius: 8px; font-size: 0.875rem; max-height: 200px; overflow-y: auto;">
+                        <p style="color: var(--text-light);">Keine Entities gefunden</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div class="notification" id="notification"></div>
+
+    <script>
+        // State Management
+        let stats = {
+            totalProcessed: 0,
+            entitiesFound: 0,
+            totalTime: 0,
+            avgTime: 0
+        };
+
+        // Mock PII Detection (Client-Side)
+        const patterns = {
+            PERSON: {
+                regex: /\b[A-ZÄÖÜ][a-zäöüß]+ [A-ZÄÖÜ][a-zäöüß]+\b/g,
+                replacement: '[NAME]',
+                color: 'person'
+            },
+            EMAIL: {
+                regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+                replacement: '[EMAIL]',
+                color: 'email'
+            },
+            PHONE: {
+                regex: /(\+?[0-9]{1,4}[\s.-]?)?(\(?[0-9]{1,4}\)?[\s.-]?)?[0-9]{1,4}[\s.-]?[0-9]{1,4}[\s.-]?[0-9]{1,4}/g,
+                replacement: '[PHONE]',
+                color: 'phone'
+            },
+            IBAN: {
+                regex: /[A-Z]{2}[0-9]{2}\s?([0-9]{4}\s?){4}[0-9]{2}/g,
+                replacement: '[IBAN]',
+                color: 'iban'
+            },
+            LOCATION: {
+                regex: /\b(Berlin|München|Hamburg|Köln|Frankfurt|Stuttgart|Düsseldorf|Leipzig|Dresden|Hannover)\b/gi,
+                replacement: '[LOCATION]',
+                color: 'location'
+            },
+            URL: {
+                regex: /https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g,
+                replacement: '[URL]',
+                color: 'url'
+            },
+            IP: {
+                regex: /\b(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/g,
+                replacement: '[IP]',
+                color: 'ip'
+            },
+            DATE: {
+                regex: /\b(?:\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}|\d{4}[.\/-]\d{1,2}[.\/-]\d{1,2})\b/g,
+                replacement: '[DATE]',
+                color: 'date'
+            }
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromLocalStorage();
+            setupEventListeners();
+
+            // Check for realtime mode
+            document.getElementById('realtime').addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    document.getElementById('inputText').addEventListener('input', debounce(processText, 500));
+                } else {
+                    document.getElementById('inputText').removeEventListener('input', processText);
+                }
+            });
+        });
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Batch mode toggle
+            document.getElementById('batchMode').addEventListener('change', (e) => {
+                document.getElementById('batchContainer').classList.toggle('active', e.target.checked);
+            });
+
+            // File upload
+            const fileUploadArea = document.getElementById('fileUploadArea');
+            const fileInput = document.getElementById('fileInput');
+
+            fileUploadArea.addEventListener('click', () => fileInput.click());
+
+            fileUploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                fileUploadArea.classList.add('dragover');
+            });
+
+            fileUploadArea.addEventListener('dragleave', () => {
+                fileUploadArea.classList.remove('dragover');
+            });
+
+            fileUploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                fileUploadArea.classList.remove('dragover');
+                handleFiles(e.dataTransfer.files);
+            });
+
+            fileInput.addEventListener('change', (e) => {
+                handleFiles(e.target.files);
+            });
+        }
+
+        // Process Text
+        async function processText() {
+            const startTime = performance.now();
+            const inputText = document.getElementById('inputText').value;
+
+            if (!inputText.trim()) {
+                showNotification('Bitte geben Sie einen Text ein', 'warning');
+                return;
+            }
+
+            // Show spinner
+            document.getElementById('spinner').classList.add('active');
+
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Get selected entity types
+            const selectedTypes = Array.from(document.querySelectorAll('.checkbox-group input:checked'))
+                .map(cb => cb.value);
+
+            // Get custom redaction text
+            const customRedaction = {
+                PERSON: document.getElementById('redactPerson')?.value || '[NAME]',
+                EMAIL: document.getElementById('redactEmail')?.value || '[EMAIL]',
+                PHONE: document.getElementById('redactPhone')?.value || '[PHONE]'
+            };
+
+            // Process text
+            let processedText = inputText;
+            const foundEntities = [];
+
+            selectedTypes.forEach(type => {
+                if (patterns[type]) {
+                    const matches = inputText.match(patterns[type].regex);
+                    if (matches) {
+                        matches.forEach(match => {
+                            const replacement = customRedaction[type] || patterns[type].replacement;
+                            processedText = processedText.replace(match,
+                                `<span class="redacted">${replacement}</span>`);
+
+                            foundEntities.push({
+                                type: type,
+                                text: match,
+                                color: patterns[type].color
+                            });
+                        });
+                    }
+                }
+            });
+
+            // Update output
+            document.getElementById('outputDisplay').innerHTML = processedText || 'Keine PII gefunden';
+
+            // Update entity pills
+            updateEntityPills(foundEntities);
+
+            // Update entity details
+            updateEntityDetails(foundEntities);
+
+            // Update stats
+            const endTime = performance.now();
+            const processingTime = Math.round(endTime - startTime);
+            updateStats(foundEntities.length, processingTime);
+
+            // Hide spinner
+            document.getElementById('spinner').classList.remove('active');
+
+            // Show success notification
+            showNotification(`✅ ${foundEntities.length} Entities gefunden und anonymisiert`, 'success');
+        }
+
+        // Update Entity Pills
+        function updateEntityPills(entities) {
+            const container = document.getElementById('entityPills');
+            container.innerHTML = '';
+
+            const entityCounts = {};
+            entities.forEach(entity => {
+                entityCounts[entity.type] = (entityCounts[entity.type] || 0) + 1;
+            });
+
+            Object.entries(entityCounts).forEach(([type, count]) => {
+                const pill = document.createElement('div');
+                pill.className = `entity-pill ${patterns[type].color}`;
+                pill.innerHTML = `${type} <span style="opacity: 0.7">(${count})</span>`;
+                container.appendChild(pill);
+            });
+        }
+
+        // Update Entity Details
+        function updateEntityDetails(entities) {
+            const container = document.getElementById('entityDetails');
+
+            if (entities.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-light);">Keine Entities gefunden</p>';
+                return;
+            }
+
+            const grouped = {};
+            entities.forEach(entity => {
+                if (!grouped[entity.type]) grouped[entity.type] = [];
+                if (!grouped[entity.type].includes(entity.text)) {
+                    grouped[entity.type].push(entity.text);
+                }
+            });
+
+            let html = '';
+            Object.entries(grouped).forEach(([type, values]) => {
+                html += `<div style="margin-bottom: 1rem;">
+                    <strong style="color: var(--primary);">${type}:</strong>
+                    <div style="margin-left: 1rem; margin-top: 0.25rem;">
+                        ${values.map(v => `<span style="background: var(--border); padding: 2px 8px; border-radius: 4px; margin-right: 0.5rem; display: inline-block; margin-bottom: 0.25rem;">${v}</span>`).join('')}
+                    </div>
+                </div>`;
+            });
+
+            container.innerHTML = html;
+        }
+
+        // Update Statistics
+        function updateStats(entitiesCount, processingTime) {
+            stats.totalProcessed++;
+            stats.entitiesFound += entitiesCount;
+            stats.totalTime += processingTime;
+            stats.avgTime = Math.round(stats.totalTime / stats.totalProcessed);
+
+            document.getElementById('totalProcessed').textContent = stats.totalProcessed;
+            document.getElementById('entitiesFound').textContent = stats.entitiesFound;
+            document.getElementById('avgTime').textContent = `${stats.avgTime}ms`;
+
+            // Calculate privacy score (mock)
+            const score = entitiesCount > 0 ? 100 : 0;
+            document.getElementById('privacyScore').textContent = `${score}%`;
+
+            // Save to localStorage
+            localStorage.setItem('piiStats', JSON.stringify(stats));
+        }
+
+        // Load Example
+        function loadExample() {
+            const exampleText = `Sehr geehrte Damen und Herren,
+
+mein Name ist Max Mustermann und ich wohne in Berlin, Hauptstraße 123.
+Sie können mich unter der E-Mail-Adresse max.mustermann@example.com
+oder telefonisch unter +49 30 12345678 erreichen.
+
+Für die Überweisung nutzen Sie bitte folgende Bankverbindung:
+IBAN: DE89 3704 0044 0532 0130 00
+BIC: COBADEFFXXX
+
+Mit freundlichen Grüßen
+Max Mustermann
+
+P.S.: Weitere Informationen finden Sie auf https://www.example.com
+Server-IP: 192.168.1.100
+Termin: 15.03.2024`;
+
+            document.getElementById('inputText').value = exampleText;
+            showNotification('Beispieltext geladen', 'success');
+        }
+
+        // Clear All
+        function clearAll() {
+            document.getElementById('inputText').value = '';
+            document.getElementById('outputDisplay').innerHTML = 'Hier erscheint der anonymisierte Text...';
+            document.getElementById('entityPills').innerHTML = '';
+            document.getElementById('entityDetails').innerHTML = '<p style="color: var(--text-light);">Keine Entities gefunden</p>';
+            showNotification('Alles zurückgesetzt', 'success');
+        }
+
+        // Copy Result
+        function copyResult() {
+            const output = document.getElementById('outputDisplay').innerText;
+            navigator.clipboard.writeText(output).then(() => {
+                showNotification('Text in Zwischenablage kopiert', 'success');
+            }).catch(() => {
+                showNotification('Kopieren fehlgeschlagen', 'error');
+            });
+        }
+
+        // Toggle Theme
+        function toggleTheme() {
+            const body = document.body;
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+            body.setAttribute('data-theme', newTheme);
+            document.getElementById('themeIcon').textContent = newTheme === 'dark' ? '☀️' : '🌙';
+
+            localStorage.setItem('theme', newTheme);
+        }
+
+        // Toggle Advanced Options
+        function toggleAdvanced() {
+            const content = document.getElementById('advancedContent');
+            const icon = document.getElementById('advancedIcon');
+
+            content.classList.toggle('show');
+            icon.textContent = content.classList.contains('show') ? '▼' : '▶';
+        }
+
+        // Handle Files (Batch Mode)
+        async function handleFiles(files) {
+            for (const file of files) {
+                if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+                    const text = await file.text();
+                    document.getElementById('inputText').value = text;
+                    await processText();
+                }
+            }
+        }
+
+        // Show Notification
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Debounce Function
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Load from LocalStorage
+        function loadFromLocalStorage() {
+            // Load theme
+            const savedTheme = localStorage.getItem('theme') || 'light';
+            document.body.setAttribute('data-theme', savedTheme);
+            document.getElementById('themeIcon').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+            // Load stats
+            const savedStats = localStorage.getItem('piiStats');
+            if (savedStats) {
+                stats = JSON.parse(savedStats);
+                document.getElementById('totalProcessed').textContent = stats.totalProcessed;
+                document.getElementById('entitiesFound').textContent = stats.entitiesFound;
+                document.getElementById('avgTime').textContent = `${stats.avgTime}ms`;
+            }
+        }
+
+        // API Integration (wenn Backend verfügbar)
+        async function processTextWithAPI() {
+            const API_URL = 'http://localhost:8080/scrub';
+            const inputText = document.getElementById('inputText').value;
+            const language = document.getElementById('language').value;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        text: inputText,
+                        language: language
+                    })
+                });
+
+                if (!response.ok) throw new Error('API Error');
+
+                const data = await response.json();
+                // Process API response
+                console.log(data);
+
+            } catch (error) {
+                console.error('API call failed, using client-side detection', error);
+                // Fallback to client-side
+                processText();
+            }
+        }
+    </script>
+</body>
+</html>
