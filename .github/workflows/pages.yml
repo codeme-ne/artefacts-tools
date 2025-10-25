@@ -25,16 +25,23 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
+
       - name: Install dependencies
         run: |
-          pip install pyyaml jinja2 markdown beautifulsoup4
+          pip install -r requirements.txt
           
       - name: Build site
         run: |
           chmod +x build.sh
           ./build.sh
-          
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

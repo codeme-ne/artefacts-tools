@@ -1,2 +1,11 @@
 title: tools.neurohackingly.com
 description: A collection of simple, single-file tools
+
+# Optional: Repository URL for commit links in colophon
+repo_url: https://github.com/codeme-ne/artefacts-tools
+
+# Optional: Custom domain (defaults to CNAME if not set)
+domain: tools.neurohackingly.com
+
+# Enable grouping tools by category (set in .docs.md frontmatter)
+categories_enabled: false
