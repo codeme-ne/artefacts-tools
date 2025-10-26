@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PRD zu Prototyp</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #ffffff;
+            color: #000000;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 40px 20px;
+            border-bottom: 2px solid #000000;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.1em;
+            color: #666666;
+        }
+
+        .upload-section {
+            background-color: #f8f8f8;
+            border: 2px solid #000000;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin: 20px 0;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #000000;
+            color: #ffffff;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        .file-label:hover {
+            background-color: #333333;
+        }
+
+        .file-name {
+            display: block;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #666666;
+        }
+
+        button {
+            padding: 12px 40px;
+            background-color: #000000;
+            color: #ffffff;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin: 10px 5px;
+        }
+
+        button:hover:not(:disabled) {
+            background-color: #333333;
+        }
+
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #000000;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            display: none;
+            background-color: #ffe6e6;
+            border: 2px solid #ff0000;
+            border-radius: 6px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #cc0000;
+        }
+
+        .error.active {
+            display: block;
+        }
+
+        .prototype-container {
+            display: none;
+            margin-top: 40px;
+        }
+
+        .prototype-container.active {
+            display: block;
+        }
+
+        .prototype-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            background-color: #f8f8f8;
+            border: 2px solid #000000;
+            border-radius: 8px 8px 0 0;
+            border-bottom: none;
+        }
+
+        .prototype-content {
+            border: 2px solid #000000;
+            border-radius: 0 0 8px 8px;
+            min-height: 500px;
+            background-color: #ffffff;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        .info-box {
+            background-color: #f0f0f0;
+            border-left: 4px solid #000000;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>PRD zu Prototyp</h1>
+            <p class="subtitle">Lade dein Product Requirements Document hoch und erhalte einen interaktiven Prototyp</p>
+        </header>
+
+        <div class="upload-section">
+            <h2>PRD hochladen</h2>
+            <div class="info-box">
+                📄 Unterstützte Formate: TXT, MD, PDF, DOC, DOCX
+            </div>
+
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" accept=".txt,.md,.pdf,.doc,.docx">
+                <label for="fileInput" class="file-label">Datei auswählen</label>
+            </div>
+            <span class="file-name" id="fileName">Keine Datei ausgewählt</span>
+
+            <div style="margin-top: 30px;">
+                <button id="generateBtn" disabled>Prototyp generieren</button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Claude generiert deinen Prototyp... Dies kann 30-60 Sekunden dauern.</p>
+        </div>
+
+        <div class="error" id="error">
+            <strong>Fehler:</strong> <span id="errorMessage"></span>
+        </div>
+
+        <div class="prototype-container" id="prototypeContainer">
+            <div class="prototype-header">
+                <h2>Generierter Prototyp</h2>
+                <button id="resetBtn">Neuen Prototyp erstellen</button>
+            </div>
+            <div class="prototype-content" id="prototypeContent"></div>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const generateBtn = document.getElementById('generateBtn');
+        const loading = document.getElementById('loading');
+        const error = document.getElementById('error');
+        const errorMessage = document.getElementById('errorMessage');
+        const prototypeContainer = document.getElementById('prototypeContainer');
+        const prototypeContent = document.getElementById('prototypeContent');
+        const resetBtn = document.getElementById('resetBtn');
+
+        let uploadedFileContent = '';
+
+        fileInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                fileName.textContent = file.name;
+                generateBtn.disabled = false;
+
+                try {
+                    uploadedFileContent = await readFile(file);
+                } catch (err) {
+                    showError('Fehler beim Lesen der Datei: ' + err.message);
+                    generateBtn.disabled = true;
+                }
+            } else {
+                fileName.textContent = 'Keine Datei ausgewählt';
+                generateBtn.disabled = true;
+            }
+        });
+
+        async function readFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error('Fehler beim Lesen der Datei'));
+                reader.readAsText(file);
+            });
+        }
+
+        generateBtn.addEventListener('click', async () => {
+            hideError();
+            showLoading();
+            prototypeContainer.classList.remove('active');
+
+            try {
+                const prototype = await generatePrototype(uploadedFileContent);
+                displayPrototype(prototype);
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                hideLoading();
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            prototypeContainer.classList.remove('active');
+            fileInput.value = '';
+            fileName.textContent = 'Keine Datei ausgewählt';
+            generateBtn.disabled = true;
+            uploadedFileContent = '';
+            prototypeContent.innerHTML = '';
+        });
+
+        async function generatePrototype(prdContent) {
+            const response = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-20250514',
+                    max_tokens: 32000,
+                    messages: [{
+                        role: 'user',
+                        content: `Du bist ein Experte für die Erstellung von interaktiven Prototypen. Basierend auf dem folgenden Product Requirements Document (PRD), erstelle einen vollständig funktionsfähigen, interaktiven HTML/JavaScript Prototyp.
+
+WICHTIGE REGELN:
+1. Gib NUR reinen HTML-Code zurück, keine Markdown-Formatierung, keine Backticks (\`\`\`), keine Code-Blöcke
+2. Der HTML-Code muss vollständig sein mit allen erforderlichen Styles (inline oder im <style>-Tag)
+3. Alle JavaScript-Funktionen müssen im <script>-Tag enthalten sein
+4. Der Prototyp soll interaktiv und visuell ansprechend sein
+5. Verwende moderne UI-Patterns und responsive Design
+6. Stelle sicher, dass alle interaktiven Elemente funktionieren
+
+PRD:
+${prdContent}
+
+Antworte jetzt ausschließlich mit dem HTML-Code, ohne jegliche Erklärungen oder Markdown-Formatierung:`
+                    }]
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(`API-Fehler: ${response.status} - ${errorData.error?.message || 'Unbekannter Fehler'}`);
+            }
+
+            const data = await response.json();
+            let htmlContent = data.content[0].text;
+
+            // Entferne Markdown Code-Blöcke falls vorhanden
+            htmlContent = htmlContent.replace(/```html\n?/g, '');
+            htmlContent = htmlContent.replace(/```\n?/g, '');
+            htmlContent = htmlContent.trim();
+
+            return htmlContent;
+        }
+
+        function displayPrototype(htmlContent) {
+            // Extrahiere und entferne alle Script-Tags
+            const scriptRegex = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
+            const scripts = [];
+            let match;
+
+            while ((match = scriptRegex.exec(htmlContent)) !== null) {
+                scripts.push(match[1]);
+            }
+
+            // Entferne Script-Tags aus dem HTML
+            const htmlWithoutScripts = htmlContent.replace(scriptRegex, '');
+
+            // Setze den HTML-Inhalt
+            prototypeContent.innerHTML = htmlWithoutScripts;
+
+            // Führe alle Scripts aus
+            scripts.forEach((scriptContent) => {
+                try {
+                    const scriptElement = document.createElement('script');
+                    scriptElement.textContent = scriptContent;
+                    prototypeContent.appendChild(scriptElement);
+                } catch (err) {
+                    console.error('Fehler beim Ausführen des Scripts:', err);
+                }
+            });
+
+            // Zeige den Prototyp an
+            prototypeContainer.classList.add('active');
+
+            // Scrolle zum Prototyp
+            prototypeContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function showLoading() {
+            loading.classList.add('active');
+            generateBtn.disabled = true;
+        }
+
+        function hideLoading() {
+            loading.classList.remove('active');
+            generateBtn.disabled = false;
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            error.classList.add('active');
+        }
+
+        function hideError() {
+            error.classList.remove('active');
+        }
+    </script>
+</body>
+</html>
