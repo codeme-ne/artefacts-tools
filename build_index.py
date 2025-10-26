@@ -2,11 +2,24 @@
 """Build index page from gathered tool metadata."""
 import json
 import shutil
+import subprocess
 from collections import defaultdict
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
 import yaml
+
+
+@dataclass
+class Commit:
+    """Git commit information."""
+    hash: str
+    short_hash: str
+    author: str
+    date: str
+    message: str
 
 
 def load_config() -> dict:
@@ -29,6 +42,67 @@ def load_tools() -> list[dict]:
 
     with tools_path.open('r', encoding='utf-8') as f:
         return json.load(f)
+
+
+def get_git_commits(limit: int = 50) -> list[Commit]:
+    """Get recent git commits.
+
+    Args:
+        limit: Maximum number of commits to retrieve
+
+    Returns:
+        List of Commit objects
+    """
+    try:
+        # Git log format: hash|author|date|message
+        result = subprocess.run(
+            [
+                'git', 'log',
+                f'-{limit}',
+                '--pretty=format:%H|%an|%ai|%s',
+                '--no-merges'
+            ],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        commits = []
+        for line in result.stdout.strip().split('\n'):
+            if not line:
+                continue
+
+            parts = line.split('|', 3)
+            if len(parts) != 4:
+                continue
+
+            hash_full, author, date_str, message = parts
+
+            commits.append(Commit(
+                hash=hash_full,
+                short_hash=hash_full[:7],
+                author=author,
+                date=date_str,
+                message=message
+            ))
+
+        return commits
+
+    except subprocess.CalledProcessError as e:
+        print(f"Warning: Could not get git log: {e}")
+        return []
+    except FileNotFoundError:
+        print("Warning: git not found")
+        return []
+
+
+def format_date(date_str: str) -> str:
+    """Format ISO date to readable format."""
+    try:
+        dt = datetime.fromisoformat(date_str)
+        return dt.strftime('%B %d, %Y at %H:%M')
+    except Exception:
+        return date_str
 
 
 def group_by_category(tools: list[dict]) -> dict[Optional[str], list[dict]]:
@@ -64,11 +138,12 @@ def generate_tool_html(tool: dict) -> str:
 """
 
 
-def generate_index_html(config: dict, tools: list[dict]) -> str:
+def generate_index_html(config: dict, tools: list[dict], commits: list[Commit]) -> str:
     """Generate complete index HTML."""
     site_title = config.get('title', 'Tools')
     site_description = config.get('description', 'A collection of tools')
     categories_enabled = config.get('categories_enabled', False)
+    repo_url = config.get('repo_url')
 
     # Generate tools HTML
     tools_html = []
@@ -85,6 +160,24 @@ def generate_index_html(config: dict, tools: list[dict]) -> str:
         tools_html.extend(generate_tool_html(t) for t in tools)
 
     tools_section = ''.join(tools_html) if tools else '<p>No tools available yet.</p>'
+
+    # Generate colophon HTML
+    commit_html = []
+    for commit in commits:
+        commit_link = f'<code>{commit.short_hash}</code>'
+        if repo_url:
+            commit_link = f'<a href="{repo_url}/commit/{commit.hash}">{commit_link}</a>'
+
+        commit_html.append(f"""
+        <div class="commit">
+            <div class="commit-header">
+                {commit_link} &mdash; <span class="author">{commit.author}</span>
+            </div>
+            <div class="message">{commit.message}</div>
+            <div class="date">{format_date(commit.date)}</div>
+        </div>""")
+
+    colophon_content = ''.join(commit_html) if commits else '<p>No git history available.</p>'
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -152,16 +245,54 @@ def generate_index_html(config: dict, tools: list[dict]) -> str:
             margin-top: 60px;
             padding-top: 20px;
             border-top: 1px solid #eaecef;
-            text-align: center;
-            color: #586069;
+        }}
+        details {{
+            margin-top: 20px;
+        }}
+        summary {{
+            cursor: pointer;
+            font-weight: 600;
+            color: #0366d6;
+            padding: 10px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+            background: #f6f8fa;
+        }}
+        summary:hover {{
+            background: #e1e4e8;
+        }}
+        .commit {{
+            margin: 15px 0;
+            padding: 15px;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+        }}
+        .commit-header {{
+            font-weight: 600;
+            margin-bottom: 5px;
+        }}
+        .commit code {{
+            background: #f6f8fa;
+            padding: 2px 6px;
+            border-radius: 3px;
             font-size: 0.9em;
         }}
-        .footer a {{
+        .commit a {{
             color: #0366d6;
             text-decoration: none;
         }}
-        .footer a:hover {{
+        .commit a:hover {{
             text-decoration: underline;
+        }}
+        .author {{
+            color: #586069;
+        }}
+        .message {{
+            margin: 8px 0;
+        }}
+        .date {{
+            color: #586069;
+            font-size: 0.9em;
         }}
     </style>
 </head>
@@ -172,7 +303,12 @@ def generate_index_html(config: dict, tools: list[dict]) -> str:
 {tools_section}
 
     <div class="footer">
-        <a href="colophon.html">Colophon</a>
+        <details>
+            <summary>Colophon</summary>
+            <div style="margin-top: 15px;">
+                {colophon_content}
+            </div>
+        </details>
     </div>
 </body>
 </html>
@@ -208,8 +344,12 @@ def main():
 
     print(f"Loaded {len(tools)} tool(s)")
 
+    # Get git commits for colophon
+    commits = get_git_commits(limit=50)
+    print(f"Found {len(commits)} commit(s)")
+
     # Generate index HTML
-    html = generate_index_html(config, tools)
+    html = generate_index_html(config, tools, commits)
 
     # Write to dist/index.html
     dist_dir = Path('dist')

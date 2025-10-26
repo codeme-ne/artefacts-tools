@@ -12,7 +12,7 @@ mkdir -p dist
 
 # Step 1: Gather tool metadata
 echo
-echo "→ Step 1/3: Gathering tool metadata..."
+echo "→ Step 1/2: Gathering tool metadata..."
 python3 gather_links.py
 
 # Smoke test: Check if any tools were found
@@ -30,15 +30,10 @@ fi
 
 echo "   ✓ Found $TOOL_COUNT tool(s)"
 
-# Step 2: Build index page
+# Step 2: Build index page (with integrated colophon)
 echo
-echo "→ Step 2/3: Building index page..."
+echo "→ Step 2/2: Building index page..."
 python3 build_index.py
-
-# Step 3: Build colophon page
-echo
-echo "→ Step 3/3: Building colophon page..."
-python3 build_colophon.py
 
 # Copy CNAME if exists
 if [ -f "CNAME" ]; then
