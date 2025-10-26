@@ -21,6 +21,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         
+      - name: Check for .docs.md files
+        run: |
+          if find . -name "*.docs.md" -type f | grep -q .; then
+            echo "❌ ERROR: .docs.md files are not allowed in the repository!"
+            echo ""
+            echo "Found the following .docs.md files:"
+            find . -name "*.docs.md" -type f
+            echo ""
+            echo "Please remove these files or rename them to use a different extension."
+            exit 1
+          fi
+          echo "✓ No .docs.md files found"
+        
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
