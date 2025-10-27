@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Image OCR Text Extractor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <style>
+    :root {
+      color-scheme: light;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f3f4f6;
+      color: #1f2937;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    main {
+      background: #fff;
+      width: min(960px, 92vw);
+      margin: 48px auto;
+      padding: 40px;
+      border-radius: 24px;
+      box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: clamp(1.75rem, 2.5vw, 2.5rem);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    h1 span {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, #4f46e5, #4338ca);
+      color: #fff;
+      font-weight: 600;
+      box-shadow: 0 15px 30px -10px rgba(79, 70, 229, 0.8);
+    }
+
+    p.description {
+      margin-top: 8px;
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: #4b5563;
+    }
+
+    .controls {
+      display: grid;
+      gap: 24px;
+      margin-top: 32px;
+    }
+
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #374151;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 18px;
+      border: 2px dashed #c7d2fe;
+      border-radius: 16px;
+      background: #eef2ff;
+      cursor: pointer;
+      transition: border-color 0.2s ease, background-color 0.2s ease;
+      font-size: 0.95rem;
+    }
+
+    input[type="file"]:hover,
+    input[type="file"]:focus {
+      border-color: #4f46e5;
+      background: #e0e7ff;
+      outline: none;
+    }
+
+    select {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 1px solid #d1d5db;
+      font-size: 1rem;
+      background: #f9fafb;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 14px 20px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.2s ease;
+    }
+
+    #processButton {
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      color: #fff;
+      box-shadow: 0 18px 35px -14px rgba(79, 70, 229, 0.8);
+    }
+
+    #processButton:disabled {
+      background: #a5b4fc;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    #copyButton {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #e5e7eb;
+    }
+
+    #processButton:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 22px 35px -18px rgba(79, 70, 229, 0.9);
+    }
+
+    #copyButton:hover {
+      background: #e5e7eb;
+    }
+
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 18px;
+      margin-top: 12px;
+    }
+
+    .preview-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 18px;
+      padding: 12px;
+      background: #f9fafb;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    }
+
+    .preview-card img {
+      width: 100%;
+      height: 150px;
+      object-fit: contain;
+      border-radius: 12px;
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      padding: 6px;
+    }
+
+    .preview-card span {
+      font-size: 0.85rem;
+      color: #6b7280;
+      text-align: center;
+      word-break: break-word;
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 12px;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: #eef2ff;
+      color: #4338ca;
+      font-weight: 500;
+    }
+
+    .status.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 3px solid rgba(79, 70, 229, 0.25);
+      border-top-color: #4f46e5;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      border-radius: 16px;
+      padding: 18px;
+      border: 1px solid #d1d5db;
+      font-size: 1rem;
+      line-height: 1.7;
+      background: #f9fafb;
+      resize: vertical;
+      font-family: 'Inter', sans-serif;
+    }
+
+    textarea:focus {
+      outline: 2px solid #c7d2fe;
+      background: #fff;
+    }
+
+    .textarea-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    .textarea-header h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      color: #1f2937;
+    }
+
+    .tips {
+      margin-top: 30px;
+      padding: 18px 20px;
+      border-radius: 18px;
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    footer {
+      margin-top: 36px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #6b7280;
+    }
+
+    @media (max-width: 600px) {
+      main {
+        padding: 28px;
+      }
+
+      .textarea-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1><span>OCR</span>Bild zu Text Konverter</h1>
+    <p class="description">
+      Lade ein oder mehrere Bilder hoch und extrahiere den Text direkt im Browser. Der erkannte Text lässt sich sofort bearbeiten,
+      kopieren oder weiterverwenden.
+    </p>
+
+    <section class="controls" aria-label="OCR Einstellungen">
+      <div>
+        <label for="imageInput">Bilder auswählen</label>
+        <input id="imageInput" type="file" accept="image/*" multiple>
+        <div id="preview" class="preview-grid" aria-live="polite"></div>
+      </div>
+
+      <div>
+        <label for="languageSelect">Erkennungssprache</label>
+        <select id="languageSelect">
+          <option value="eng" selected>Englisch (eng)</option>
+          <option value="deu">Deutsch (deu)</option>
+          <option value="eng+deu">Englisch + Deutsch</option>
+          <option value="spa">Spanisch (spa)</option>
+          <option value="fra">Französisch (fra)</option>
+        </select>
+      </div>
+
+      <div>
+        <button id="processButton" type="button">Text extrahieren</button>
+        <div id="status" class="status hidden" role="status">
+          <span class="spinner" aria-hidden="true"></span>
+          <span id="statusText">Bereit…</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="textarea-header">
+      <h2>Erkannter Text</h2>
+      <button id="copyButton" type="button">Text kopieren</button>
+    </div>
+    <textarea id="output" placeholder="Der erkannte Text erscheint hier und kann beliebig bearbeitet werden."></textarea>
+
+    <aside class="tips">
+      <strong>Hinweise für bessere Ergebnisse:</strong>
+      <ul>
+        <li>Verwende kontrastreiche Bilder und stelle sicher, dass der Text scharf abgebildet ist.</li>
+        <li>Wähle die passende Sprache für den Text aus, um die Genauigkeit zu erhöhen.</li>
+        <li>Mehrere Bilder werden nacheinander verarbeitet; der Text wird automatisch zusammengeführt.</li>
+      </ul>
+    </aside>
+
+    <footer>
+      Läuft vollständig im Browser – deine Bilder verlassen dein Gerät nicht.
+    </footer>
+  </main>
+
+  <script>
+    const imageInput = document.getElementById('imageInput');
+    const preview = document.getElementById('preview');
+    const processButton = document.getElementById('processButton');
+    const statusBox = document.getElementById('status');
+    const statusText = document.getElementById('statusText');
+    const languageSelect = document.getElementById('languageSelect');
+    const output = document.getElementById('output');
+    const copyButton = document.getElementById('copyButton');
+
+    let files = [];
+
+    preview.innerHTML = '<p style="grid-column: 1 / -1; color: #6b7280;">Noch keine Bilder ausgewählt.</p>';
+
+    imageInput.addEventListener('change', (event) => {
+      files = Array.from(event.target.files);
+      preview.innerHTML = '';
+
+      if (files.length === 0) {
+        preview.innerHTML = '<p style="grid-column: 1 / -1; color: #6b7280;">Noch keine Bilder ausgewählt.</p>';
+        return;
+      }
+
+      files.forEach((file) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const card = document.createElement('div');
+          card.className = 'preview-card';
+
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          img.alt = `Vorschau von ${file.name}`;
+
+          const caption = document.createElement('span');
+          caption.textContent = file.name;
+
+          card.appendChild(img);
+          card.appendChild(caption);
+          preview.appendChild(card);
+        };
+        reader.readAsDataURL(file);
+      });
+    });
+
+    async function extractText() {
+      if (!files.length) {
+        alert('Bitte wähle mindestens ein Bild aus.');
+        return;
+      }
+
+      processButton.disabled = true;
+      statusBox.classList.remove('hidden');
+      statusText.textContent = 'Starte Erkennung…';
+      output.value = '';
+
+      const language = languageSelect.value;
+
+      for (let index = 0; index < files.length; index++) {
+        const file = files[index];
+        statusText.textContent = `Verarbeite "${file.name}" (${index + 1}/${files.length})…`;
+        try {
+          const result = await Tesseract.recognize(file, language, {
+            logger: (m) => {
+              if (m.status === 'recognizing text') {
+                const progress = Math.round(m.progress * 100);
+                statusText.textContent = `Verarbeite "${file.name}" (${index + 1}/${files.length}) – ${progress}%`;
+              }
+            }
+          });
+          output.value += (output.value ? '\n\n' : '') + result.data.text.trim();
+        } catch (error) {
+          console.error(error);
+          output.value += `\n[Fehler bei ${file.name}: ${error.message}]`;
+        }
+      }
+
+      statusText.textContent = 'Erkennung abgeschlossen.';
+      setTimeout(() => statusBox.classList.add('hidden'), 1500);
+      processButton.disabled = false;
+    }
+
+    processButton.addEventListener('click', extractText);
+
+    copyButton.addEventListener('click', async () => {
+      if (!output.value) {
+        alert('Es gibt keinen Text zum Kopieren.');
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(output.value);
+        copyButton.textContent = 'Kopiert!';
+        setTimeout(() => (copyButton.textContent = 'Text kopieren'), 2000);
+      } catch (error) {
+        console.error('Kopieren fehlgeschlagen', error);
+        alert('Kopieren nicht möglich. Bitte markiere und kopiere den Text manuell.');
+      }
+    });
+  </script>
+</body>
+</html>
